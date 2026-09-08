@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NCC Attendance</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0a0a;
+    --card:#141414;
+    --card-border:#262626;
+    --text:#f5f5f5;
+    --muted:#8a8a8a;
+    --accent:#ffffff;
+    --accent-dim:#3a3a3a;
+    --present:#e8e8e8;
+    --absent:#5a5a5a;
+    --present-glow: rgba(255,255,255,0.04);
+    --absent-glow: rgba(0,0,0,0.2);
+    --radius:13px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
+  html{-webkit-text-size-adjust:100%;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Manrope', -apple-system, BlinkMacSystemFont,'Segoe UI', Roboto, Arial, sans-serif;
+    min-height:100vh;
+    padding:20px 14px 96px;
+    -webkit-font-smoothing:antialiased;
+    font-size:14px;
+  }
+  .wrap{max-width:640px; margin:0 auto;}
+  header{margin-bottom:16px;}
+  h1{
+    font-size:19px; font-weight:800; letter-spacing:0.2px;
+    color:#fff;
+  }
+  .topbar{
+    display:flex; gap:8px; align-items:center; justify-content:space-between;
+    margin-bottom:10px;
+    flex-wrap:wrap;
+  }
+  .date-picker{
+    background:var(--card);
+    border:1px solid var(--card-border);
+    border-radius:10px;
+    padding:8px 30px 8px 11px;
+    color:var(--text);
+    font-family:'Manrope', sans-serif;
+    font-size:12.5px;
+    font-weight:600;
+    flex:1;
+    min-width:130px;
+    appearance:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238a8a8a' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat:no-repeat;
+    background-position:right 11px center;
+    cursor:pointer;
+    transition:border-color .15s ease;
+  }
+  .date-picker:hover{border-color:#4a4a4a;}
+  .bulk-btns{display:flex; gap:6px;}
+  .pill-btn{
+    background:var(--card);
+    border:1px solid var(--card-border);
+    color:var(--muted);
+    padding:7px 11px;
+    border-radius:18px;
+    font-family:'Manrope', sans-serif;
+    font-size:11px;
+    font-weight:700;
+    cursor:pointer;
+    transition:all .15s ease;
+    white-space:nowrap;
+  }
+  .pill-btn:hover{border-color:#4a4a4a; color:#fff;}
+  .pill-btn:active{transform:scale(0.96);}
+  .search{
+    width:100%;
+    background:var(--card);
+    border:1px solid var(--card-border);
+    border-radius:10px;
+    padding:9px 12px;
+    color:var(--text);
+    font-family:'Manrope', sans-serif;
+    font-size:13px;
+    font-weight:500;
+    margin-bottom:10px;
+    transition:border-color .15s ease;
+  }
+  .search:focus{outline:none; border-color:#4a4a4a;}
+  .search::placeholder{color:var(--muted);}
+  .counts{
+    color:var(--muted); font-size:11px; margin-bottom:10px;
+    display:flex; gap:12px; font-weight:500;
+  }
+  .counts b{color:#fff; font-weight:800;}
+  .dot{display:inline-block; width:6px; height:6px; border-radius:50%; margin-right:4px; vertical-align:middle;}
+  .dot.present{background:#fff;}
+  .dot.absent{background:#555;}
+
+  .list{display:flex; flex-direction:column; gap:7px;}
+  .row{
+    background:var(--card);
+    border:1px solid var(--card-border);
+    border-radius:var(--radius);
+    padding:10px 12px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    cursor:pointer;
+    user-select:none;
+    -webkit-user-select:none;
+    transition:background .18s ease, border-color .18s ease, transform .1s ease;
+  }
+  .row:active{transform:scale(0.985);}
+  .row.present{ border-color:#3a3a3a; background: linear-gradient(90deg, rgba(255,255,255,0.035), var(--card) 25%); }
+  .row.absent{ border-color:#242424; background:var(--card); opacity:0.72; }
+  .info{display:flex; flex-direction:column; gap:1px; min-width:0;}
+  .name{font-size:13.5px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; letter-spacing:0.1px;}
+  .sap{font-size:10.5px; color:var(--muted); letter-spacing:0.3px; font-weight:500;}
+  .toggle-area{display:flex; align-items:center; gap:8px; flex-shrink:0;}
+  .status-label{
+    font-size:9.5px;
+    font-weight:800;
+    letter-spacing:0.6px;
+    width:48px;
+    text-align:center;
+  }
+  .status-label.present{color:#f0f0f0;}
+  .status-label.absent{color:#666;}
+
+  .switch{
+    position:relative;
+    width:40px;
+    height:23px;
+    border-radius:20px;
+    background:#222;
+    cursor:pointer;
+    transition:background .2s ease;
+    flex-shrink:0;
+    border:1px solid var(--card-border);
+  }
+  .switch.present{background:#f0f0f0; border-color:#f0f0f0;}
+  .switch.absent{background:#1c1c1c; border-color:#2c2c2c;}
+  .knob{
+    position:absolute;
+    top:2px; left:2px;
+    width:17px; height:17px;
+    border-radius:50%;
+    background:#fff;
+    transition:left .2s cubic-bezier(.4,0,.2,1), background .2s ease;
+    box-shadow:0 1px 2px rgba(0,0,0,0.5);
+  }
+  .switch.present .knob{left:19px; background:#0a0a0a;}
+  .switch.absent .knob{background:#6a6a6a;}
+
+  .footer{
+    position:fixed;
+    bottom:0; left:0; right:0;
+    background:linear-gradient(180deg, transparent, var(--bg) 40%);
+    padding:16px 14px 18px;
+    display:flex;
+    justify-content:center;
+  }
+  .save-btn{
+    background:#fff;
+    color:#0a0a0a;
+    border:none;
+    padding:13px 30px;
+    border-radius:13px;
+    font-family:'Manrope', sans-serif;
+    font-size:13.5px;
+    font-weight:800;
+    letter-spacing:0.2px;
+    cursor:pointer;
+    box-shadow:0 6px 24px rgba(255,255,255,0.08);
+    transition:transform .12s ease, box-shadow .15s ease, opacity .2s;
+    max-width:640px;
+    width:100%;
+    display:flex; align-items:center; justify-content:center; gap:8px;
+  }
+  .save-btn:active{transform:scale(0.98);}
+  .save-btn:disabled{opacity:0.5; cursor:not-allowed; box-shadow:none;}
+  .spinner{
+    width:14px; height:14px;
+    border:2px solid rgba(10,10,10,0.25);
+    border-top-color:#0a0a0a;
+    border-radius:50%;
+    animation:spin .7s linear infinite;
+    display:none;
+  }
+  .save-btn.loading .spinner{display:inline-block;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  /* Modal */
+  .modal-overlay{
+    position:fixed; inset:0;
+    background:rgba(0,0,0,0.75);
+    backdrop-filter:blur(4px);
+    display:none;
+    align-items:center; justify-content:center;
+    z-index:100;
+    padding:18px;
+    opacity:0;
+    transition:opacity .2s ease;
+  }
+  .modal-overlay.show{display:flex; opacity:1;}
+  .modal{
+    background:var(--card);
+    border:1px solid var(--card-border);
+    border-radius:16px;
+    padding:22px 20px 18px;
+    max-width:300px;
+    width:100%;
+    text-align:center;
+    transform:translateY(8px) scale(0.97);
+    transition:transform .2s cubic-bezier(.34,1.56,.64,1);
+    box-shadow:0 16px 50px rgba(0,0,0,0.6);
+  }
+  .modal-overlay.show .modal{transform:translateY(0) scale(1);}
+  .modal-icon{
+    width:44px; height:44px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    margin:0 auto 12px;
+    font-size:20px;
+    font-weight:800;
+  }
+  .modal-icon.ok{background:#f0f0f0; color:#0a0a0a;}
+  .modal-icon.err{background:#2a2a2a; color:#f0f0f0; border:1px solid #3a3a3a;}
+  .modal-title{font-size:14.5px; font-weight:800; margin-bottom:5px;}
+  .modal-msg{font-size:12px; color:var(--muted); line-height:1.5; margin-bottom:16px; font-weight:500;}
+  .modal-btn{
+    background:#fff;
+    color:#0a0a0a;
+    border:none;
+    padding:10px 0;
+    width:100%;
+    border-radius:10px;
+    font-family:'Manrope', sans-serif;
+    font-size:12.5px;
+    font-weight:800;
+    cursor:pointer;
+    transition:opacity .15s;
+  }
+  .modal-btn:hover{opacity:0.85;}
+  .modal-btn:active{transform:scale(0.98);}
+  .modal-btn.secondary{
+    background:transparent;
+    border:1px solid var(--card-border);
+    color:var(--muted);
+    margin-top:7px;
+  }
+
+  /* Extra-tight mobile phones */
+  @media (max-width:400px){
+    body{padding:16px 10px 90px; font-size:13px;}
+    h1{font-size:17px;}
+    .row{padding:9px 10px;}
+    .name{font-size:13px;}
+    .sap{font-size:10px;}
+    .switch{width:38px; height:22px;}
+    .knob{width:16px; height:16px;}
+    .switch.present .knob{left:18px;}
+    .status-label{width:42px; font-size:9px;}
+    .save-btn{padding:12px 24px; font-size:13px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>NCC Attendance</h1>
+  </header>
+
+  <div class="topbar">
+    <select id="dateInput" class="date-picker"></select>
+    <div class="bulk-btns">
+      <button class="pill-btn" onclick="markAll(true)">All Present</button>
+      <button class="pill-btn" onclick="markAll(false)">All Absent</button>
+    </div>
+  </div>
+
+  <input type="text" class="search" id="searchBox" placeholder="Search by name or SAP ID...">
+  <div class="counts" id="counts"></div>
+  <div class="list" id="list"></div>
+</div>
+
+<div class="footer">
+  <button class="save-btn" id="saveBtn" onclick="saveAttendance()">
+    <span class="spinner"></span>
+    <span id="saveBtnText">Save Attendance</span>
+  </button>
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-icon" id="modalIcon">✓</div>
+    <div class="modal-title" id="modalTitle">Success</div>
+    <div class="modal-msg" id="modalMsg">Attendance uploaded.</div>
+    <button class="modal-btn" id="modalOkBtn" onclick="closeModal()">OK</button>
+    <button class="modal-btn secondary" id="modalRetryBtn" style="display:none" onclick="retryLastSave()">Retry</button>
+  </div>
+</div>
+
+<script>
+// ---- CONFIG ----
+const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRWerQWmEnUclN_zGcQ7o7fQlPWDaddEXfyfv40mb62xk8WjP_bJ9f__U1RWUfOhKe/exec";
+const STORAGE_KEY = "ncc_attendance_pending";
+const SAVE_TIMEOUT_MS = 20000;
+
+const students = [{"name": "Anik Mahawar", "sap": "1000030831", "year": "1st"}, {"name": "Raghav Bansal", "sap": "1000027792", "year": "2nd"}, {"name": "Lakshya Sharma", "sap": "1000029700", "year": "1st"}, {"name": "Sujal Bisht", "sap": "1000028679", "year": "2nd"}, {"name": "Arman Kumar", "sap": "1000031560", "year": "1st"}, {"name": "Aryan Kumar", "sap": "1000030185", "year": "1st"}, {"name": "Shwetak Biswal", "sap": "1000030941", "year": "1st"}, {"name": "Puranjay Rathore", "sap": "1000030808", "year": "1st"}, {"name": "Shardul Srivastava", "sap": "1000030235", "year": "1st"}, {"name": "Ayush Negi", "sap": "1000030379", "year": "1st"}, {"name": "Shreashth Singh", "sap": "1000030660", "year": "1st"}, {"name": "Shivam Singh", "sap": "1000031638", "year": "1st"}, {"name": "Himanshu Kumar", "sap": "1000030619", "year": "1st"}, {"name": "Piyush Kumar", "sap": "1000031039", "year": "1st"}, {"name": "Prem Kumar", "sap": "1000030979", "year": "1st"}, {"name": "Akshay Sirmouriya", "sap": "1000031291", "year": "1st"}, {"name": "Pankaj Ku. Singh", "sap": "1000031635", "year": "1st"}, {"name": "Harshit Makroti", "sap": "1000031134", "year": "1st"}, {"name": "Priyanshu Rawat", "sap": "1000029956", "year": "1st"}, {"name": "Prasum Pathak", "sap": "1000030412", "year": "1st"}, {"name": "Aaryan Varshney", "sap": "1000030074", "year": "1st"}, {"name": "Rajan Bhattachari", "sap": "1000031328", "year": "1st"}, {"name": "Vishesh Ku. Sharma", "sap": "1000030499", "year": "1st"}, {"name": "Atul Singh", "sap": "1000029693", "year": "1st"}, {"name": "Anuj Singh Patwal", "sap": "1000031011", "year": "1st"}, {"name": "Harish Kumar", "sap": "1000030792", "year": "1st"}, {"name": "Zorawar Singh Sandhu", "sap": "1000029786", "year": "1st"}, {"name": "Akshit Chand", "sap": "1000030938", "year": "1st"}, {"name": "Abhinav Malik", "sap": "1000031207", "year": "1st"}, {"name": "Adarsh Rai", "sap": "1000031026", "year": "1st"}, {"name": "Manas Kumar", "sap": "1000030331", "year": "1st"}, {"name": "Divyanshu Dho...", "sap": "1000030494", "year": "2nd"}, {"name": "Yatin Dhiman", "sap": "1000031201", "year": "1st"}, {"name": "Ankit Gurung", "sap": "1000029616", "year": "2nd"}, {"name": "Siddhant Singhal", "sap": "1000029900", "year": "1st"}, {"name": "Kautik", "sap": "1000031609", "year": "1st"}, {"name": "Parth Tiwari", "sap": "1000031450", "year": "2nd"}, {"name": "Rupak Mishra", "sap": "1000030249", "year": "1st"}, {"name": "Bikrant Kumar", "sap": "1000031368", "year": "1st"}, {"name": "Raj Kumar", "sap": "1000031167", "year": "1st"}, {"name": "Rishab Bhatia", "sap": "1000031318", "year": "1st"}, {"name": "Anshpam Priyadarshi", "sap": "1000030618", "year": "1st"}, {"name": "Deepanshu Verma", "sap": "1000030746", "year": "1st"}, {"name": "Pankh Sexni", "sap": "1000031236", "year": "1st"}, {"name": "Aditya Vardhan Singh", "sap": "1000030639", "year": "1st"}];
+
+const state = {}; // sap -> true(present)/false(absent)
+students.forEach(s => state[s.sap] = false); // default: everyone absent
+
+const listEl = document.getElementById('list');
+const countsEl = document.getElementById('counts');
+const dateInput = document.getElementById('dateInput');
+
+(function populateDates(){
+  const today = new Date();
+  const fmt = (d) => d.toISOString().split('T')[0];
+  const label = (d) => d.toLocaleDateString('en-IN', { weekday:'short', day:'2-digit', month:'short', year:'numeric' });
+  for(let offset = 14; offset >= -14; offset--){
+    const d = new Date(today);
+    d.setDate(d.getDate() - offset);
+    const opt = document.createElement('option');
+    opt.value = fmt(d);
+    opt.textContent = label(d) + (offset === 0 ? ' (Today)' : '');
+    if(offset === 0) opt.selected = true;
+    dateInput.appendChild(opt);
+  }
+})();
+
+function escapeHtml(str){
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function buildRow(s){
+  const present = state[s.sap];
+  const row = document.createElement('div');
+  row.className = 'row ' + (present ? 'present' : 'absent');
+  row.dataset.sap = s.sap;
+  row.innerHTML = `
+    <div class="info">
+      <div class="name">${escapeHtml(s.name)}</div>
+      <div class="sap">SAP: ${escapeHtml(s.sap)}${s.year ? ' · Yr ' + escapeHtml(s.year) : ''}</div>
+    </div>
+    <div class="toggle-area">
+      <div class="status-label ${present ? 'present':'absent'}">${present ? 'PRESENT':'ABSENT'}</div>
+      <div class="switch ${present ? 'present':'absent'}">
+        <div class="knob"></div>
+      </div>
+    </div>
+  `;
+  row.addEventListener('click', () => toggleStudent(s.sap));
+  return row;
+}
+
+function toggleStudent(sap){
+  state[sap] = !state[sap];
+  // Targeted update only — keeps the slide animation and avoids
+  // rebuilding/scrolling the whole list on every tap.
+  const row = listEl.querySelector(`.row[data-sap="${cssEscape(sap)}"]`);
+  if(row){
+    const present = state[sap];
+    row.className = 'row ' + (present ? 'present' : 'absent');
+    const label = row.querySelector('.status-label');
+    label.className = 'status-label ' + (present ? 'present' : 'absent');
+    label.textContent = present ? 'PRESENT' : 'ABSENT';
+    row.querySelector('.switch').className = 'switch ' + (present ? 'present' : 'absent');
+  }
+  updateCounts();
+}
+
+function cssEscape(str){
+  return String(str).replace(/["\\]/g, '\\$&');
+}
+
+function render(filter=""){
+  const scrollY = window.scrollY;
+  listEl.innerHTML = "";
+  const f = filter.trim().toLowerCase();
+  const filtered = students.filter(s =>
+    s.name.toLowerCase().includes(f) || s.sap.includes(f)
+  );
+  const frag = document.createDocumentFragment();
+  filtered.forEach(s => frag.appendChild(buildRow(s)));
+  listEl.appendChild(frag);
+  updateCounts();
+  // Only search/filter changes reflow the list; restore scroll so typing
+  // doesn't visually jump the page.
+  window.scrollTo(0, scrollY);
+}
+
+function updateCounts(){
+  const total = students.length;
+  const present = Object.values(state).filter(v=>v).length;
+  countsEl.innerHTML = `<span><span class="dot present"></span><b>${present}</b> present</span><span><span class="dot absent"></span><b>${total-present}</b> absent</span><span>${total} total</span>`;
+}
+
+function markAll(val){
+  students.forEach(s => state[s.sap] = val);
+  // Update rows in place (smooth) instead of destroying/rebuilding the list.
+  listEl.querySelectorAll('.row').forEach(row => {
+    const sap = row.dataset.sap;
+    const present = state[sap];
+    row.className = 'row ' + (present ? 'present' : 'absent');
+    const label = row.querySelector('.status-label');
+    label.className = 'status-label ' + (present ? 'present' : 'absent');
+    label.textContent = present ? 'PRESENT' : 'ABSENT';
+    row.querySelector('.switch').className = 'switch ' + (present ? 'present' : 'absent');
+  });
+  updateCounts();
+}
+
+document.getElementById('searchBox').addEventListener('input', (e) => render(e.target.value));
+
+// ---- Modal ----
+function showModal(type, title, msg, showRetry=false){
+  document.getElementById('modalIcon').className = 'modal-icon ' + (type === 'ok' ? 'ok' : 'err');
+  document.getElementById('modalIcon').textContent = type === 'ok' ? '✓' : '!';
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalMsg').textContent = msg;
+  document.getElementById('modalRetryBtn').style.display = showRetry ? 'block' : 'none';
+  document.getElementById('modalOverlay').dataset.dismissable = showRetry ? 'false' : 'true';
+  document.getElementById('modalOverlay').classList.add('show');
+}
+function closeModal(){
+  document.getElementById('modalOverlay').classList.remove('show');
+}
+
+// Tap outside the modal to dismiss it — but only for plain confirmations,
+// not for "retry" states, so a failed save can't be accidentally lost.
+document.getElementById('modalOverlay').addEventListener('click', (e) => {
+  const overlay = document.getElementById('modalOverlay');
+  if(e.target === overlay && overlay.dataset.dismissable === 'true'){
+    closeModal();
+  }
+});
+document.addEventListener('keydown', (e) => {
+  const overlay = document.getElementById('modalOverlay');
+  if(e.key === 'Escape' && overlay.classList.contains('show') && overlay.dataset.dismissable === 'true'){
+    closeModal();
+  }
+});
+
+// ---- Failsafes ----
+// 1. Warn before closing/reloading while a save is in progress
+let saveInProgress = false;
+window.addEventListener('beforeunload', (e) => {
+  if(saveInProgress){
+    e.preventDefault();
+    e.returnValue = '';
+    return '';
+  }
+});
+
+// 2. Persist the attempt locally BEFORE sending, so nothing is silently lost
+//    if the tab closes or connection drops mid-request.
+function persistPending(payload){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify({payload, ts: Date.now()})); }catch(e){}
+}
+function clearPending(){
+  try{ localStorage.removeItem(STORAGE_KEY); }catch(e){}
+}
+
+let lastPayload = null;
+
+async function sendWithTimeout(payload){
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), SAVE_TIMEOUT_MS);
+  try{
+    await fetch(WEBHOOK_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: {'Content-Type': 'text/plain'},
+      body: JSON.stringify(payload),
+      signal: controller.signal
+    });
+    clearTimeout(timer);
+    return true;
+  }catch(err){
+    clearTimeout(timer);
+    throw err;
+  }
+}
+
+async function saveAttendance(){
+  const btn = document.getElementById('saveBtn');
+  const btnText = document.getElementById('saveBtnText');
+  const date = dateInput.value;
+
+  if(WEBHOOK_URL.includes('PASTE_YOUR')){
+    showModal('err', 'Not connected', "The Google Sheets link hasn't been set up yet in this page's code.");
+    return;
+  }
+
+  const payload = {
+    date: date,
+    records: students.map(s => ({
+      name: s.name,
+      sap: s.sap,
+      status: state[s.sap] ? 'Present' : 'Absent'
+    }))
+  };
+  lastPayload = payload;
+  persistPending(payload);
+
+  saveInProgress = true;
+  btn.disabled = true;
+  btn.classList.add('loading');
+  btnText.textContent = 'Saving...';
+
+  try{
+    await sendWithTimeout(payload);
+    clearPending();
+    showModal('ok', 'Attendance saved', `${date} attendance for ${payload.records.length} students uploaded successfully.`);
+  }catch(err){
+    showModal('err', 'Upload failed', "Could not reach Google Sheets. Your entries are safely saved on this device — tap Retry once you're back online.", true);
+  }finally{
+    saveInProgress = false;
+    btn.disabled = false;
+    btn.classList.remove('loading');
+    btnText.textContent = 'Save Attendance';
+  }
+}
+
+async function retryLastSave(){
+  if(!lastPayload) return;
+  closeModal();
+  const btn = document.getElementById('saveBtn');
+  const btnText = document.getElementById('saveBtnText');
+  saveInProgress = true;
+  btn.disabled = true;
+  btn.classList.add('loading');
+  btnText.textContent = 'Retrying...';
+  try{
+    await sendWithTimeout(lastPayload);
+    clearPending();
+    showModal('ok', 'Attendance saved', `Upload succeeded on retry.`);
+  }catch(err){
+    showModal('err', 'Still failing', 'Check your internet connection and try again. Nothing has been lost.', true);
+  }finally{
+    saveInProgress = false;
+    btn.disabled = false;
+    btn.classList.remove('loading');
+    btnText.textContent = 'Save Attendance';
+  }
+}
+
+// 3. On page load, check if a previous save never confirmed completion
+//    (e.g. tab was closed mid-request) and offer to resume it.
+window.addEventListener('load', () => {
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw){
+      const saved = JSON.parse(raw);
+      lastPayload = saved.payload;
+      const when = new Date(saved.ts).toLocaleString('en-IN');
+      showModal('err', 'Unfinished save found', `An attendance upload from ${when} may not have completed. Tap Retry to send it now, or OK to discard it.`, true);
+    }
+  }catch(e){}
+});
+
+render();
+</script>
+</body>
+</html>
