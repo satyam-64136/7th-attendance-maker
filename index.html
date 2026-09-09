@@ -34,10 +34,13 @@
   header{margin-bottom:16px; display:flex; align-items:center; justify-content:space-between; gap:10px;}
   h1{font-size:19px; font-weight:800; letter-spacing:0.2px; color:#fff;}
   .sync-badge{
+    cursor:pointer;
+    transition:opacity .15s ease;
     font-size:10px; font-weight:700; color:var(--muted);
     display:flex; align-items:center; gap:5px;
     padding:5px 10px; border:1px solid var(--card-border); border-radius:14px;
   }
+  .sync-badge:active{opacity:0.6;}
   .sync-dot{width:6px; height:6px; border-radius:50%; background:#555; transition:background .2s;}
   .sync-badge.live .sync-dot{background:#e8e8e8;}
   .sync-badge.error .sync-dot{background:var(--absent-color, #b3453f);}
@@ -200,7 +203,7 @@
 <div class="wrap">
   <header>
     <h1>NCC Attendance</h1>
-    <div class="sync-badge" id="syncBadge"><span class="sync-dot"></span><span id="syncBadgeText">Loading</span></div>
+    <div class="sync-badge" id="syncBadge" onclick="loadRoster(true)"><span class="sync-dot"></span><span id="syncBadgeText">Loading</span></div>
   </header>
 
   <div class="topbar">
@@ -256,7 +259,7 @@
 // Your Google Apps Script Web App URL (see setup instructions). The roster
 // AND attendance both live in your Google Sheet — this page has no data
 // of its own, it just reads/writes that sheet.
-const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbws-sf0KwkcQxO19gCyVoNo52RTw33dUIo8Oz-carbqOo-ipB2o1E3vT-YasdwCsZrL/exec";
+const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbz73ofSfdueKe1N0fmSE4z3UYOX0ncJWhyzk3cHyf3ueoT1nyxPD7WAb6F0mqYGY1LS/exec";
 const STORAGE_KEY = "ncc_attendance_pending";
 const ROSTER_CACHE_KEY = "ncc_roster_cache";
 const SAVE_TIMEOUT_MS = 20000;
@@ -310,7 +313,7 @@ function loadCachedRoster(){
 }
 
 // ---- Load roster from the sheet ----
-async function loadRoster(){
+async function loadRoster(force){
   if(WEBHOOK_URL.includes('PASTE_YOUR')){
     listEl.innerHTML = `<div class="state-msg">This page isn't connected to a Google Sheet yet.<br>Set WEBHOOK_URL in the code to load the roster.</div>`;
     setSyncBadge('error', 'Not connected');
@@ -322,18 +325,22 @@ async function loadRoster(){
   // background and only touch the DOM if something actually changed.
   const cached = loadCachedRoster();
   const hadCache = !!(cached && cached.list && cached.list.length);
-  if(hadCache){
+  if(hadCache && !force){
     students = cached.list;
     students.forEach(s => { if(!(s.sap in state)) state[s.sap] = false; });
     setSyncBadge('', 'Syncing');
     render();
   }else{
-    listEl.innerHTML = `<div class="state-msg"><div class="mini-spinner"></div>Loading roster from Sheet...</div>`;
-    setSyncBadge('', 'Loading');
+    if(!hadCache) listEl.innerHTML = `<div class="state-msg"><div class="mini-spinner"></div>Loading roster from Sheet...</div>`;
+    setSyncBadge('', force ? 'Refreshing' : 'Loading');
   }
 
   try{
-    const res = await fetch(WEBHOOK_URL + '?action=list', { method: 'GET' });
+    // force=true (tapping the badge) also busts the 60-second server-side
+    // cache, and skips it, so a manual sheet edit shows up right away
+    // instead of waiting for that cache to expire on its own.
+    const url = WEBHOOK_URL + '?action=list' + (force ? '&fresh=1&t=' + Date.now() : '');
+    const res = await fetch(url, { method: 'GET' });
     const data = await res.json();
     const fresh = (data.students || []).map(s => ({ name: s.name, sap: String(s.sap), year: s.year || '' }));
     const changed = JSON.stringify(fresh) !== JSON.stringify(students);
@@ -341,7 +348,7 @@ async function loadRoster(){
     students.forEach(s => { if(!(s.sap in state)) state[s.sap] = false; });
     cacheRoster(students);
     setSyncBadge('live', 'Live');
-    if(changed || !hadCache) render(document.getElementById('searchBox').value);
+    if(changed || !hadCache || force) render(document.getElementById('searchBox').value);
   }catch(err){
     if(hadCache){
       const when = new Date(cached.ts).toLocaleString('en-IN');
